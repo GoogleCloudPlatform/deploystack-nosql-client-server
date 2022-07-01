@@ -1,0 +1,6 @@
+terraform*
+.terraform*
+clean
+go.mod
+go.sum
+errFile

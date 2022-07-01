@@ -1,0 +1,8 @@
+
+
+CONGRATS!!!!!!!  
+You have configured a project and create a Compute Engine instance. 
+
+To connect to it, you can SSH using the command above. 
+
+
