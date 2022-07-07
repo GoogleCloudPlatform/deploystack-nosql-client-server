@@ -51,6 +51,22 @@ resource "google_project_service" "all" {
   disable_on_destroy         = false
 }
 
+
+resource "google_compute_firewall" "default-allow-http" {
+  name    = "default-allow-http"
+  project = var.project_number
+  network = "projects/${var.project_id}/global/networks/default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+
+  target_tags = ["http-server"]
+}
+
 # Create Instances
 resource "google_compute_instance" "server" {
   name         = "server"
@@ -85,7 +101,7 @@ resource "google_compute_instance" "server" {
     iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 27017
     service mongodb start
   SCRIPT
-  depends_on = [google_project_service.all]
+  depends_on              = [google_project_service.all]
 }
 
 resource "google_compute_instance" "client" {
@@ -93,7 +109,7 @@ resource "google_compute_instance" "client" {
   zone         = var.zone
   project      = var.project_id
   machine_type = "e2-standard-2"
-  tags         = ["http-server"]
+  tags         = ["http-server", "https-server"]
 
   boot_disk {
     auto_delete = true
@@ -125,6 +141,7 @@ resource "google_compute_instance" "client" {
     GOPATH=/go GOMODCACHE=/modcache GOCACHE=/modcache go mod tidy
     GOPATH=/go GOMODCACHE=/modcache GOCACHE=/modcache go get -u 
     sed -i 's/mongoport = "80"/mongoport = "27017"/' /app/main.go
+    echo "GOPATH=/go GOMODCACHE=/modcache GOCACHE=/modcache HOST=${google_compute_instance.server.network_interface.0.network_ip} go run main.go"
     GOPATH=/go GOMODCACHE=/modcache GOCACHE=/modcache HOST=${google_compute_instance.server.network_interface.0.network_ip} go run main.go & 
   SCRIPT
 

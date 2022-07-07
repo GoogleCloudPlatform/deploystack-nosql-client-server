@@ -61,6 +61,7 @@ function evalTest() {
 
     printf "$expected is ok\n"
 }
+
 # END DON'T REMOVE FROM test script.
 
 
@@ -69,13 +70,10 @@ gcloud services enable cloudresourcemanager.googleapis.com --project=$PROJECT
 get_project_number PROJECT_NUMBER $PROJECT
 REGION=us-central1
 ZONE=us-central1-a
-BASENAME=singlevm
-DISKSIZE="200"
-DISKTYPE="pd-standard"
-DISKIMAGE="debian-cloud/debian-11-bullseye-v20220519"
-MACHINETYPE="n1-standard-1"
-NAME="${BASENAME}-instance"
-TAGS="[\"http-server\",\"https-server\"]"
+BASENAME=mongo-client-server
+
+CLIENT=client
+SERVER=server
 
 gcloud config set project ${PROJECT}
 
@@ -85,17 +83,37 @@ terraform apply -auto-approve \
     -var project_number="${PROJECT_NUMBER}" \
     -var zone="${ZONE}" \
     -var basename="${BASENAME}" \
-    -var region="${REGION}" \
-    -var instance-disksize="${DISKSIZE}" \
-    -var instance-disktype="${DISKTYPE}" \
-    -var instance-image="${DISKIMAGE}" \
-    -var instance-machine-type="${MACHINETYPE}" \
-    -var instance-name="${NAME}" \
-    -var instance-tags="${TAGS}" 
+    -var region="${REGION}" 
 
 
-section_open "Test Instance"
-    evalTest 'gcloud compute instances describe $NAME --zone="$ZONE" --format="value(name)"'  $NAME
+section_open "Test Client Instance"
+    evalTest 'gcloud compute instances describe $CLIENT --zone="$ZONE" --format="value(name)"'  $CLIENT
+section_close
+
+section_open "Test Server Instance"
+    evalTest 'gcloud compute instances describe $SERVER --zone="$ZONE" --format="value(name)"'  $SERVER
+section_close
+
+
+section_open "Test Client is running"
+    CLIENT=$(terraform output client_url)
+    CLIENT=${CLIENT//\"/}
+    CLIENT=${CLIENT//http:\/\//}
+    echo "Testing $CLIENT"
+
+    attempt_counter=0
+    max_attempts=24
+
+    until $(curl --output /dev/null --silent --head --fail http://$CLIENT); do
+        if [ ${attempt_counter} -eq ${max_attempts} ];then
+        echo "Max attempts reached"
+        exit 1
+        fi
+
+        printf '.'
+        attempt_counter=$(($attempt_counter+1))
+        sleep 5
+    done
 section_close
 
 
@@ -104,17 +122,17 @@ terraform destroy -auto-approve \
     -var project_number="${PROJECT_NUMBER}" \
     -var zone="${ZONE}" \
     -var basename="${BASENAME}" \
-    -var region="${REGION}" \
-    -var instance-disksize="${DISKSIZE}" \
-    -var instance-disktype="${DISKTYPE}" \
-    -var instance-image="${DISKIMAGE}" \
-    -var instance-machine-type="${MACHINETYPE}" \
-    -var instance-name="${NAME}" \
-    -var instance-tags="${TAGS}" 
+    -var region="${REGION}" 
 
-section_open "Test Instance"
-    evalTest 'gcloud compute instances describe $NAME --zone="$ZONE" --format="value(name)"'  "EXPECTERROR"
+
+section_open "Test Client Instance"
+    evalTest 'gcloud compute instances describe $CLIENT --zone="$ZONE" --format="value(name)"'  "EXPECTERROR"
 section_close
+
+section_open "Test Server Instance"
+    evalTest 'gcloud compute instances describe $SERVER --zone="$ZONE" --format="value(name)"'  "EXPECTERROR"
+section_close
+
 
 
 printf "$DIVIDER"
