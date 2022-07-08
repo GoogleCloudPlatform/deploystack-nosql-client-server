@@ -1,0 +1,4 @@
+This process will configure and create two Compute Engine instances:
+* Server - which will run mongodb
+* Client - which will run a custom go application that talks to mongo and then 
+           exposes an API where you consumne data from mongo
