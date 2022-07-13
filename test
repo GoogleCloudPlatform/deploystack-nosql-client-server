@@ -102,7 +102,7 @@ section_open "Test Client is running"
     echo "Testing $CLIENT"
 
     attempt_counter=0
-    max_attempts=24
+    max_attempts=50
 
     until $(curl --output /dev/null --silent --head --fail http://$CLIENT); do
         if [ ${attempt_counter} -eq ${max_attempts} ];then
