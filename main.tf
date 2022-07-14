@@ -53,7 +53,7 @@ resource "google_project_service" "all" {
 
 
 resource "google_compute_firewall" "default-allow-http" {
-  name    = "default-allow-http"
+  name    = "deploystack-allow-http"
   project = var.project_number
   network = "projects/${var.project_id}/global/networks/default"
 
