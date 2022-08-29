@@ -8,7 +8,12 @@ max_attempts=50
 
 until $(curl --output /dev/null --silent --head --fail $CLIENT); do
     if [ ${attempt_counter} -eq ${max_attempts} ];then
-    echo "Max attempts reached"
+    repo=$(git config --get remote.origin.url)
+    echo "Max attempts reached."
+    echo "Solution was not successfully installed."
+    echo 
+    echo "If the problem persists, please file an issue with the Github repo:"
+    echo "${repo/.git/}/issues"
     exit 1
     fi
 
