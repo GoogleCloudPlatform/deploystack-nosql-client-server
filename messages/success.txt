@@ -5,10 +5,6 @@ You have configured a project and created two Compute Engine instances.
 1. server - running mongodb
 2. client - running small go app with api 
 
-The client should be accessible at the url preceeding this message, 
-*in a few moments*. If it is not up, try waiting 3 minutes before trying again. 
  
-In the meantime you can inspect these vms in the Cloud Console - 
-http://console.cloud.google.com  
 
 
