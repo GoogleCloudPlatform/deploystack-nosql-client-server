@@ -1,4 +1,5 @@
 {	"title":"NOSQL CLIENT SERVER",
+	"name": "nosql-client-server",
 	"duration":5,
 	"documentation_link": "https://cloud.google.com/shell/docs/cloud-shell-tutorials/deploystack/nosql-client-server",
 	"collect_project":true,

@@ -15,5 +15,5 @@
 steps:
    - name: 'gcr.io/cloudshell-images/cloudshell:latest'
      entrypoint: bash
-     args: [ './test' ]
+     args: [ './.deploystack/test' ]
 timeout: 2200s
