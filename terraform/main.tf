@@ -14,34 +14,9 @@
  * limitations under the License.
  */
 
-variable "project_id" {
-  type = string
-}
-
-variable "project_number" {
-  type = string
-}
-
-variable "zone" {
-  type = string
-}
-
-variable "region" {
-  type = string
-}
-
-variable "basename" {
-  type = string
-}
 
 # Enabling services in your GCP project
-variable "gcp_service_list" {
-  description = "The list of apis necessary for the project"
-  type        = list(string)
-  default = [
-    "compute.googleapis.com",
-  ]
-}
+
 
 resource "google_project_service" "all" {
   for_each                   = toset(var.gcp_service_list)
@@ -146,8 +121,4 @@ resource "google_compute_instance" "client" {
   SCRIPT
 
   depends_on = [google_project_service.all]
-}
-
-output "client_url" {
-  value = "http://${google_compute_instance.client.network_interface.0.access_config.0.nat_ip}"
 }

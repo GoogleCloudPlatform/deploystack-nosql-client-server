@@ -71,14 +71,15 @@ get_project_number PROJECT_NUMBER $PROJECT
 REGION=us-central1
 ZONE=us-central1-a
 BASENAME=mongo-client-server
+terraformDIR=terraform
 
 CLIENT=client
 SERVER=server
 
 gcloud config set project ${PROJECT}
 
-terraform init
-terraform apply -auto-approve \
+terraform -chdir="$terraformDIR" init
+terraform -chdir="$terraformDIR" apply -auto-approve \
     -var project_id="${PROJECT}" \
     -var project_number="${PROJECT_NUMBER}" \
     -var zone="${ZONE}" \
@@ -117,7 +118,7 @@ section_open "Test Client is running"
 section_close
 
 
-terraform destroy -auto-approve \
+terraform -chdir="$terraformDIR" destroy -auto-approve \
     -var project_id="${PROJECT}" \
     -var project_number="${PROJECT_NUMBER}" \
     -var zone="${ZONE}" \
