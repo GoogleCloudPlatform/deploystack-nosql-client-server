@@ -1,4 +1,5 @@
-CLIENT=$(terraform output client_url)  
+terraformDIR="terraform/"
+CLIENT=$(terraform -chdir="$terraformDIR" output client_url)  
 CLIENT=${CLIENT/\"/}
 CLIENT=${CLIENT/\"/}
 echo "Waiting for the client to be active"

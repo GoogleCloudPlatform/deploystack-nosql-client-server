@@ -71,14 +71,15 @@ get_project_number PROJECT_NUMBER $PROJECT
 REGION=us-central1
 ZONE=us-central1-a
 BASENAME=mongo-client-server
+terraformDIR=terraform
 
 CLIENT=client
 SERVER=server
 
 gcloud config set project ${PROJECT}
 
-terraform init
-terraform apply -auto-approve \
+terraform -chdir="$terraformDIR" init
+terraform -chdir="$terraformDIR" apply -auto-approve \
     -var project_id="${PROJECT}" \
     -var project_number="${PROJECT_NUMBER}" \
     -var zone="${ZONE}" \
@@ -94,9 +95,24 @@ section_open "Test Server Instance"
     evalTest 'gcloud compute instances describe $SERVER --zone="$ZONE" --format="value(name)"'  $SERVER
 section_close
 
+section_open "Test Network"
+    evalTest 'gcloud compute networks describe $BASENAME-network --format="value(name)"'  "$BASENAME-network"
+section_close
+
+section_open "Test HTTP Firewall Rule"
+    evalTest 'gcloud compute firewall-rules describe deploystack-allow-http --format="value(name)"'  "deploystack-allow-http"
+section_close
+
+section_open "Test SSH Firewall Rule"
+    evalTest 'gcloud compute firewall-rules describe deploystack-allow-ssh --format="value(name)"'  "deploystack-allow-ssh"
+section_close
+
+section_open "Test Internal Firewall Rule"
+    evalTest 'gcloud compute firewall-rules describe deploystack-allow-internal --format="value(name)"'  "deploystack-allow-internal"
+section_close
 
 section_open "Test Client is running"
-    CLIENT=$(terraform output client_url)
+    CLIENT=$(terraform -chdir="$terraformDIR" output client_url)
     CLIENT=${CLIENT//\"/}
     CLIENT=${CLIENT//http:\/\//}
     echo "Testing $CLIENT"
@@ -116,13 +132,28 @@ section_open "Test Client is running"
     done
 section_close
 
-
-terraform destroy -auto-approve \
+terraform -chdir="$terraformDIR" destroy -auto-approve \
     -var project_id="${PROJECT}" \
     -var project_number="${PROJECT_NUMBER}" \
     -var zone="${ZONE}" \
     -var basename="${BASENAME}" \
     -var region="${REGION}" 
+
+section_open "Test Internal Firewall Rule does not exist"
+    evalTest 'gcloud compute firewall-rules describe deploystack-allow-internal --format="value(name)"'  "EXPECTERROR"
+section_close
+
+section_open "Test ssh Firewall Rule does not exist"
+    evalTest 'gcloud compute firewall-rules deploystack-allow-ssh --format="value(name)"'  "EXPECTERROR"
+section_close
+
+section_open "Test http Firewall Rule does not exist"
+    evalTest 'gcloud compute firewall-rules deploystack-allow-http --format="value(name)"'  "EXPECTERROR"
+section_close
+
+section_open "Test Network does not exist"
+    evalTest 'gcloud compute networks describe $BASENAME-network --format="value(name)"' "EXPECTERROR"
+section_close
 
 
 section_open "Test Client Instance"

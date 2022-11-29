@@ -1,5 +1,6 @@
-terraform*
+terraform.*
 .terraform*
 go.mod
 go.sum
 errFile
+tfdebug.log
