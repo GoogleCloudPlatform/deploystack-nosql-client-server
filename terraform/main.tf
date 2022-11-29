@@ -26,11 +26,22 @@ resource "google_project_service" "all" {
   disable_on_destroy         = false
 }
 
+data "google_compute_network" "default" {
+  project = var.project_id
+  name = "default"
+}
+
+resource "google_compute_network" "main" {
+  provider                = google-beta
+  name                    = "${var.basename}-network"
+  auto_create_subnetworks = true
+  project                 = var.project_id
+}
 
 resource "google_compute_firewall" "default-allow-http" {
   name    = "deploystack-allow-http"
   project = var.project_number
-  network = "projects/${var.project_id}/global/networks/default"
+  network = google_compute_network.main.name
 
   allow {
     protocol = "tcp"
@@ -42,13 +53,52 @@ resource "google_compute_firewall" "default-allow-http" {
   target_tags = ["http-server"]
 }
 
+resource "google_compute_firewall" "default-allow-internal" {
+  name    = "deploystack-allow-internal"
+  project = var.project_number
+  network = google_compute_network.main.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["0-65535"]
+  }
+
+  allow{
+    protocol = "udp"
+    ports    = ["0-65535"]
+  }
+
+  allow{
+    protocol = "icmp"
+  }
+
+  source_ranges = ["10.128.0.0/20"]
+
+}
+
+resource "google_compute_firewall" "default-allow-ssh" {
+  name    = "deploystack-allow-ssh"
+  project = var.project_number
+  network = google_compute_network.main.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+
+  target_tags = ["ssh-server"]
+}
+
 # Create Instances
 resource "google_compute_instance" "server" {
   name         = "server"
   zone         = var.zone
   project      = var.project_id
   machine_type = "e2-standard-2"
-  tags         = ["http-server"]
+  tags         = ["ssh-server", "http-server"]
+  allow_stopping_for_update = true
 
 
   boot_disk {
@@ -62,10 +112,14 @@ resource "google_compute_instance" "server" {
   }
 
   network_interface {
-    network = "default"
+    network = google_compute_network.main.name
     access_config {
       // Ephemeral public IP
     }
+  }
+
+  service_account {
+    scopes = ["https://www.googleapis.com/auth/logging.write"]
   }
 
   metadata_startup_script = <<SCRIPT
@@ -84,7 +138,8 @@ resource "google_compute_instance" "client" {
   zone         = var.zone
   project      = var.project_id
   machine_type = "e2-standard-2"
-  tags         = ["http-server", "https-server"]
+  tags         = ["http-server", "https-server", "ssh-server"]
+  allow_stopping_for_update = true
 
   boot_disk {
     auto_delete = true
@@ -95,9 +150,12 @@ resource "google_compute_instance" "client" {
       type  = "pd-standard"
     }
   }
+  service_account {
+    scopes = ["https://www.googleapis.com/auth/logging.write"]
+  }
 
   network_interface {
-    network = "default"
+    network = google_compute_network.main.name
 
     access_config {
       // Ephemeral public IP
