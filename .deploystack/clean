@@ -88,6 +88,7 @@ section_close
 section_open "Delete Firewall Rule"
    gcloud compute firewall-rules delete deploystack-allow-http -q
    gcloud compute firewall-rules delete deploystack-allow-ssh -q
+   gcloud compute firewall-rules delete deploystack-allow-internal -q
 section_close
 
 section_open "Delete Network Rule"
