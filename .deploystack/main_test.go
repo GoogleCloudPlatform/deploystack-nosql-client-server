@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/deploystack"
@@ -9,6 +10,7 @@ import (
 )
 
 var (
+	ops              = dstester.NewOperationsSet()
 	project, _       = deploystack.ProjectID()
 	projectNumber, _ = deploystack.ProjectNumber(project)
 	basename         = "nosql-client-server"
@@ -25,9 +27,9 @@ var (
 		},
 	}
 
-	resources = dstester.GCPResources{
+	resources = dstester.Resources{
 		Project: project,
-		Items: []dstester.GCPResource{
+		Items: []dstester.Resource{
 			{
 				Product: "compute instances",
 				Name:    "client",
@@ -54,42 +56,30 @@ var (
 			},
 		},
 	}
-
-	checks = []dstester.Check{
-		{
-			Output: "client_url",
-			Type:   "httpPoll",
-		},
-	}
 )
 
-func TestCreateDestroy(t *testing.T) {
-	resources.Init()
-	tf.InitApplyForTest(t, debug)
-	dstester.TextExistence(t, resources.Items)
+func init() {
+	if os.Getenv("debug") != "" {
+		debug = true
+	}
 
-	dstester.TestChecks(t, checks, tf)
-
-	tf.DestroyForTest(t, debug)
-	dstester.TextNonExistence(t, resources.Items)
+	ops.Add("postApply", dstester.Operation{Output: "client_url", Type: "httpPoll"})
 }
 
-// func TestCreation(t *testing.T) {
-// 	resources.Init()
-// 	tf.InitApplyForTest(t, debug)
-// 	dstester.TextExistence(t, resources.Items)
-// }
+func TestListCommands(t *testing.T) {
+	resources.Init()
+	dstester.DebugCommands(t, tf, resources)
+}
 
-// func TestPolls(t *testing.T) {
-// 	dstester.TestChecks(t, checks, tf)
-// }
+func TestStack(t *testing.T) {
+	dstester.TestStack(t, tf, resources, ops, debug)
+}
 
-// func TestCreateAndPoll(t *testing.T) {
-// 	TestCreation(t)
-// 	TestPolls(t)
-// }
+func TestClean(t *testing.T) {
+	if os.Getenv("clean") == "" {
+		t.Skip("Clean must be very intentionally called")
+	}
 
-// func TestDestruction(t *testing.T) {
-// 	tf.DestroyForTest(t, debug)
-// 	dstester.TextNonExistence(t, resources.Items)
-// }
+	resources.Init()
+	dstester.Clean(t, tf, resources)
+}
