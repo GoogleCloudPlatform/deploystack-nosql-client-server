@@ -68,7 +68,6 @@ function evalTest() {
 
 get_project_id PROJECT
 gcloud services enable cloudresourcemanager.googleapis.com --project=$PROJECT
-get_project_number PROJECT_NUMBER $PROJECT
 REGION=us-central1
 ZONE=us-central1-a
 BASENAME=mongo-client-server
