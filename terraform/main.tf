@@ -32,8 +32,9 @@ resource "google_project_service" "all" {
 
 
 data "google_compute_network" "default" {
-  project = var.project_id
-  name    = "default"
+  project    = var.project_id
+  name       = "default"
+  depends_on = [google_project_service.all]
 }
 
 resource "google_compute_network" "main" {
@@ -41,6 +42,7 @@ resource "google_compute_network" "main" {
   name                    = "${var.basename}-network"
   auto_create_subnetworks = true
   project                 = var.project_id
+  depends_on              = [google_project_service.all]
 }
 
 resource "google_compute_firewall" "default-allow-http" {
@@ -56,6 +58,7 @@ resource "google_compute_firewall" "default-allow-http" {
   source_ranges = ["0.0.0.0/0"]
 
   target_tags = ["http-server"]
+  depends_on  = [google_project_service.all]
 }
 
 resource "google_compute_firewall" "default-allow-internal" {
@@ -78,6 +81,7 @@ resource "google_compute_firewall" "default-allow-internal" {
   }
 
   source_ranges = ["10.128.0.0/20"]
+  depends_on    = [google_project_service.all]
 
 }
 
@@ -94,6 +98,7 @@ resource "google_compute_firewall" "default-allow-ssh" {
   source_ranges = ["0.0.0.0/0"]
 
   target_tags = ["ssh-server"]
+  depends_on  = [google_project_service.all]
 }
 
 # Create Instances
