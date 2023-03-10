@@ -16,4 +16,6 @@ steps:
    - name: 'gcr.io/cloudshell-images/cloudshell:latest'
      entrypoint: bash
      args: [ './.deploystack/test' ]
+options:
+  machineType: 'E2_HIGHCPU_8'     
 timeout: 2200s
