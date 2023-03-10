@@ -72,7 +72,7 @@ function generateProject(){
     local __DATELABEL=$(date +%F)
     local VALUE=ds-test-$__STACKSUFFIX-$__RANDOMSUFFIX
     gcloud projects create $VALUE --labels="deploystack-disposable-test-project=$__DATELABEL" --folder="155265971980"
-    gcloud services enable cloudbilling.googleapis.com --project=$PROJECT
+    gcloud services enable cloudbilling.googleapis.com --project=$VALUE
     local __BA=$(gcloud beta billing accounts list --format="value(ACCOUNT_ID)" --limit=1 | xargs)
     gcloud beta billing projects link $VALUE --billing-account=$__BA
     eval $__resultvar="'$VALUE'"
