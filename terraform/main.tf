@@ -19,7 +19,7 @@
 
 
 data "google_project" "project" {
-  project = var.project_id
+  project_id = var.project_id
 }
 
 resource "google_project_service" "all" {
