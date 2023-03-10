@@ -18,17 +18,22 @@
 # Enabling services in your GCP project
 
 
+data "google_project" "project" {
+  project = var.project_id
+}
+
 resource "google_project_service" "all" {
   for_each                   = toset(var.gcp_service_list)
-  project                    = var.project_number
+  project                    = data.google_project.project.number
   service                    = each.key
   disable_dependent_services = false
   disable_on_destroy         = false
 }
 
+
 data "google_compute_network" "default" {
   project = var.project_id
-  name = "default"
+  name    = "default"
 }
 
 resource "google_compute_network" "main" {
@@ -40,7 +45,7 @@ resource "google_compute_network" "main" {
 
 resource "google_compute_firewall" "default-allow-http" {
   name    = "deploystack-allow-http"
-  project = var.project_number
+  project = data.google_project.project.number
   network = google_compute_network.main.name
 
   allow {
@@ -55,7 +60,7 @@ resource "google_compute_firewall" "default-allow-http" {
 
 resource "google_compute_firewall" "default-allow-internal" {
   name    = "deploystack-allow-internal"
-  project = var.project_number
+  project = data.google_project.project.number
   network = google_compute_network.main.name
 
   allow {
@@ -63,12 +68,12 @@ resource "google_compute_firewall" "default-allow-internal" {
     ports    = ["0-65535"]
   }
 
-  allow{
+  allow {
     protocol = "udp"
     ports    = ["0-65535"]
   }
 
-  allow{
+  allow {
     protocol = "icmp"
   }
 
@@ -78,7 +83,7 @@ resource "google_compute_firewall" "default-allow-internal" {
 
 resource "google_compute_firewall" "default-allow-ssh" {
   name    = "deploystack-allow-ssh"
-  project = var.project_number
+  project = data.google_project.project.number
   network = google_compute_network.main.name
 
   allow {
@@ -93,11 +98,11 @@ resource "google_compute_firewall" "default-allow-ssh" {
 
 # Create Instances
 resource "google_compute_instance" "server" {
-  name         = "server"
-  zone         = var.zone
-  project      = var.project_id
-  machine_type = "e2-standard-2"
-  tags         = ["ssh-server", "http-server"]
+  name                      = "server"
+  zone                      = var.zone
+  project                   = var.project_id
+  machine_type              = "e2-standard-2"
+  tags                      = ["ssh-server", "http-server"]
   allow_stopping_for_update = true
 
 
@@ -134,11 +139,11 @@ resource "google_compute_instance" "server" {
 }
 
 resource "google_compute_instance" "client" {
-  name         = "client"
-  zone         = var.zone
-  project      = var.project_id
-  machine_type = "e2-standard-2"
-  tags         = ["http-server", "https-server", "ssh-server"]
+  name                      = "client"
+  zone                      = var.zone
+  project                   = var.project_id
+  machine_type              = "e2-standard-2"
+  tags                      = ["http-server", "https-server", "ssh-server"]
   allow_stopping_for_update = true
 
   boot_disk {
