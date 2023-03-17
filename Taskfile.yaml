@@ -31,6 +31,7 @@ tasks:
       - HOST=127.0.0.1  ./webserver  
 
   go:build:
+    desc: Builds the go executable
     dir: code/client
     deps:
       - go:clean
@@ -38,12 +39,14 @@ tasks:
       - go build -o webserver main.go  
 
   go:clean:
+    desc: Cleans the go executable
     dir: code/client
     ignore_error: true
     cmds:
       - rm webserver
 
   run:
+    desc: Gets the whole thing running in one shot
     deps:
       - clean
     cmds:
