@@ -162,8 +162,6 @@ func updateHandler(svc trainerCRUDer) http.HandlerFunc {
 			return
 		}
 
-		log.Warn("", "data", data)
-
 		if err := svc.update(context.Background(), data["original"], data["replacement"]); err != nil {
 			respond(w, r, http.StatusInternalServerError, nil, err)
 			return
