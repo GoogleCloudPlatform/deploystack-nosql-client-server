@@ -1,0 +1,51 @@
+version: "3"
+
+env:
+  MONGO_NAME: mongo
+
+tasks:
+
+  mongo:
+    deps:
+      - clean
+    desc: Spins up a docker container running mongo
+    cmds: 
+      - docker run --name {{.MONGO_NAME}} -p 27017:27017 
+        -d {{.MONGO_NAME}}
+
+  clean:  
+    desc: gets rid of all resident things to start the slate clean
+    ignore_error: true
+    cmds: 
+      - docker stop {{.MONGO_NAME}}
+      - docker rm {{.MONGO_NAME}}
+      - task: go:clean
+    
+
+  webserver: 
+    desc: Spins up the web server
+    dir: code/client
+    deps:
+      - go:build
+    cmds:
+      - HOST=127.0.0.1  ./webserver  
+
+  go:build:
+    dir: code/client
+    deps:
+      - go:clean
+    cmds:
+      - go build -o webserver main.go  
+
+  go:clean:
+    dir: code/client
+    ignore_error: true
+    cmds:
+      - rm webserver
+
+  run:
+    deps:
+      - clean
+    cmds:
+      - task: mongo
+      - task: webserver

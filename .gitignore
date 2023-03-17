@@ -5,3 +5,4 @@ go.sum
 errFile
 tfdebug.log
 debug.log
+code/client/webserver
