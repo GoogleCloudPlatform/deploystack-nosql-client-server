@@ -1,0 +1,86 @@
+/* font-family: 'Lato', sans-serif;
+font-family: 'Wendy One', sans-serif; */
+
+html{
+    background-color:#d4fbfb;
+    height: 100%;
+}
+
+body{
+    font-family: 'Lato', Arial, Helvetica, sans-serif;
+    max-width: 800px;
+    width: 800px;
+    margin: 0 auto;
+    background-color: #ffffff;
+    height: 100%; 
+    padding: 20px;
+    border-left: 1px solid #95f8f8;
+    border-right: 1px solid #95f8f8;
+
+}
+
+h1, h2, h3, h4{
+    font-family: 'Wendy One', 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+    margin-top: 0;
+    color: #70bcbc
+}
+
+fieldset{
+    border:none;
+    margin-bottom: 4px; 
+}
+
+input{
+    font-family: 'Lato', Arial, Helvetica, sans-serif;
+    font-size: 18px;    
+    border-radius: 4px;
+    padding: 8px;
+    border: 1px solid #0dd0d0;
+    background-color: #e9fbfb;
+    margin-right: 8px;
+}
+
+input:focus {
+    outline: none !important;
+    border:1px solid #95f8f8;
+    box-shadow: 0 0 10px #f2fcfc;
+  }
+
+input::placeholder {
+    opacity: 0.9;
+    font-style: italic;
+    color: #9dc8c8;
+    font-weight: 100;
+} 
+
+button{
+    background-color: #fff;
+    border-radius: 4px;
+    border:1px solid #0dd0d0;
+    color: #0dd0d0;
+    margin-right: 6px;
+    box-shadow: 1px 1px 2px #187b7b8a;
+}
+
+button:active{
+    box-shadow: none;
+}
+
+
+button .text{
+    display: none;
+}
+
+button span{
+    vertical-align: bottom;
+}
+
+button.delete{
+    color: #d00d20;
+    background-color:  #fff;
+    border:1px solid #d00d20;
+    box-shadow: 1px 1px 2px #d00d208a;
+} 
+button:active.delete{
+    box-shadow: none;
+}

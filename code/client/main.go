@@ -15,131 +15,161 @@ package main
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
-	"fmt"
-	"log"
+	"io/fs"
 	"net/http"
 	"os"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"github.com/charmbracelet/log"
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 )
 
+//go:embed static
+var static embed.FS
+
 const (
-	mongoport = "27017"
-	port      = "8080"
+	mongoport   = "27017"
+	defaultPort = "80"
 )
 
 func main() {
-	mongohost := os.Getenv("HOST")
+	dbHost := os.Getenv("DBHOST")
+	port := os.Getenv("PORT")
 
-	if mongohost == "" {
-		log.Fatalf("HOST Environmental variable was not set. Should be the ip of a vm running mongo on port %s", mongoport)
+	if port == "" {
+		port = defaultPort
+	}
+
+	if dbHost == "" {
+		log.Fatal("DBHOST env not set. Need ip/host with mongo on port", mongoport)
 	}
 
 	ctx := context.Background()
-	var err error
-	tm, err := newTrainerManager(ctx, mongohost, mongoport)
+	svc, err := newTrainerService(ctx, dbHost, mongoport)
 	if err != nil {
-		log.Fatalf("error connecting to mongo: %s", err)
+		log.Fatal("error connecting to mongo: ", err)
 	}
 
-	trainers := []trainer{
-		{Name: "Ash", Age: 10, City: "Pallet Town"},
-		{Name: "Misty", Age: 10, City: "Cerulean City"},
-		{Name: "Brock", Age: 15, City: "Pewter City"},
+	fSys, err := fs.Sub(static, "static")
+	if err != nil {
+		panic(err)
 	}
 
-	if err := tm.load(ctx, trainers); err != nil {
-		log.Fatal(err)
-	}
+	router := mux.NewRouter().StrictSlash(true)
+	router.HandleFunc("/healthz", healthHandler).Methods(http.MethodGet)
+	router.HandleFunc("/api/v1/healthz", healthHandler).Methods(http.MethodGet)
+	router.HandleFunc("/api/v1/trainer", listHandler(svc)).Methods(http.MethodGet)
+	router.HandleFunc("/api/v1/trainer", createHandler(svc)).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/trainer", deleteHandler(svc)).Methods(http.MethodDelete)
+	router.HandleFunc("/api/v1/trainer", updateHandler(svc)).Methods(http.MethodPut)
+	router.PathPrefix("/").Handler(http.FileServer(http.FS(fSys)))
 
-	http.HandleFunc("/", listHandler(tm))
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With"})
+	originsOk := handlers.AllowedOrigins([]string{"*"})
+	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS", "DELETE"})
+
+	log.Fatal(http.ListenAndServe(":"+port, handlers.CORS(originsOk, headersOk, methodsOk)(router)))
 }
 
-func listHandler(tm *trainerManager) http.HandlerFunc {
+func respond(w http.ResponseWriter, r *http.Request, status int, content []byte, err error) {
+
+	w.WriteHeader(status)
+	if content == nil && err != nil {
+		log.Error("", "status", status, "error", err)
+		content = []byte(err.Error())
+		w.Write(content)
+		return
+	}
+	log.Info(r.Method, "status", status)
+	w.Write(content)
+	return
+}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	respond(w, r, http.StatusInternalServerError, []byte("ok"), nil)
+	return
+}
+
+func listHandler(svc trainerCRUDer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		trainers, err := tm.list(context.Background())
+		trainers, err := svc.list(context.Background())
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
+			respond(w, r, http.StatusInternalServerError, nil, err)
 			return
 		}
 
 		j, err := json.Marshal(trainers)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
+			respond(w, r, http.StatusInternalServerError, nil, err)
 			return
 		}
-		w.WriteHeader(http.StatusOK)
-		w.Write(j)
+		respond(w, r, http.StatusOK, j, nil)
 		return
 	}
 }
 
-type trainer struct {
-	Name string
-	Age  int
-	City string
-}
+func createHandler(svc trainerCRUDer) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		t := trainer{}
 
-// newTrainerManager spins up a new TrainerManager for interacting with MongoDB.
-func newTrainerManager(ctx context.Context, host, port string) (*trainerManager, error) {
-	uri := fmt.Sprintf("mongodb://%s:%s", host, port)
-	clientOptions := options.Client().ApplyURI(uri)
-
-	client, err := mongo.Connect(ctx, clientOptions)
-	if err != nil {
-		return nil, fmt.Errorf("error connecting to mongo: %s", err)
-	}
-
-	collection := client.Database("test").Collection("trainers")
-
-	return &trainerManager{
-		client:     client,
-		collection: collection,
-	}, nil
-}
-
-type trainerManager struct {
-	client     *mongo.Client
-	collection *mongo.Collection
-}
-
-// load pushes a collection of trainers into a mongoDB instance
-func (tm *trainerManager) load(ctx context.Context, trainers []trainer) error {
-	t := make([]interface{}, len(trainers))
-	for i, tdata := range trainers {
-		t[i] = tdata
-	}
-
-	if _, err := tm.collection.InsertMany(ctx, t); err != nil {
-		return fmt.Errorf("error inserting records to mongo: %s", err)
-	}
-
-	return nil
-}
-
-// list retrieves the total collection of trainers from a mongoDB instance
-func (tm *trainerManager) list(ctx context.Context) ([]*trainer, error) {
-	var results []*trainer
-
-	cur, err := tm.collection.Find(ctx, bson.D{{}}, options.Find())
-	if err != nil {
-		return nil, err
-	}
-	defer cur.Close(ctx)
-
-	for cur.Next(ctx) {
-		var elem trainer
-		if err := cur.Decode(&elem); err != nil {
-			return nil, err
+		if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
+			respond(w, r, http.StatusInternalServerError, nil, err)
+			return
 		}
-		results = append(results, &elem)
-	}
 
-	return results, cur.Err()
+		if err := svc.create(context.Background(), t); err != nil {
+			respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+
+		j, err := json.Marshal(t)
+		if err != nil {
+			respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		respond(w, r, http.StatusCreated, j, nil)
+		return
+	}
+}
+
+func deleteHandler(svc trainerCRUDer) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		t := trainer{}
+
+		if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
+			respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+
+		if err := svc.delete(context.Background(), t); err != nil {
+			respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+
+		respond(w, r, http.StatusNoContent, nil, nil)
+		return
+	}
+}
+
+func updateHandler(svc trainerCRUDer) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		data := map[string]trainer{}
+
+		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+			respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+
+		log.Warn("", "data", data)
+
+		if err := svc.update(context.Background(), data["original"], data["replacement"]); err != nil {
+			respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+
+		respond(w, r, http.StatusOK, nil, nil)
+		return
+	}
 }

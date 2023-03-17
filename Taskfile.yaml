@@ -28,7 +28,7 @@ tasks:
     deps:
       - go:build
     cmds:
-      - HOST=127.0.0.1  ./webserver  
+      - DBHOST=127.0.0.1 PORT=8080 ./webserver  
 
   go:build:
     desc: Builds the go executable
@@ -36,7 +36,7 @@ tasks:
     deps:
       - go:clean
     cmds:
-      - go build -o webserver main.go  
+      - go build -o webserver main.go model.go
 
   go:clean:
     desc: Cleans the go executable
