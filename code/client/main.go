@@ -17,6 +17,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"os"
@@ -64,7 +65,7 @@ func main() {
 	router.HandleFunc("/api/v1/trainer", createHandler(svc)).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/trainer", deleteHandler(svc)).Methods(http.MethodDelete)
 	router.HandleFunc("/api/v1/trainer", updateHandler(svc)).Methods(http.MethodPut)
-	router.PathPrefix("/").Handler(http.FileServer(http.FS(fSys)))
+	router.PathPrefix("/").Handler(logWrap(http.FileServer(http.FS(fSys))))
 
 	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With"})
 	originsOk := handlers.AllowedOrigins([]string{"*"})
@@ -74,17 +75,39 @@ func main() {
 }
 
 func respond(w http.ResponseWriter, r *http.Request, status int, content []byte, err error) {
-
+	c := fmt.Sprintf("%s %s %s %s %d", r.Host, r.Method, r.RequestURI, r.Proto, status)
 	w.WriteHeader(status)
 	if content == nil && err != nil {
-		log.Error("", "status", status, "error", err)
+		log.With("source", "api").Error(c, "error", err)
 		content = []byte(err.Error())
 		w.Write(content)
 		return
 	}
-	log.Info(r.Method, "status", status)
+
+	log.With("source", "api").Info(c)
 	w.Write(content)
 	return
+}
+func logWrap(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		recorder := &statusRecorder{
+			ResponseWriter: w,
+			Status:         200,
+		}
+		h.ServeHTTP(recorder, r)
+		c := fmt.Sprintf("%s %s %s %s %d", r.Host, r.Method, r.RequestURI, r.Proto, recorder.Status)
+		log.With("source", "static").Info(c)
+	})
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	Status int
+}
+
+func (r *statusRecorder) WriteHeader(status int) {
+	r.Status = status
+	r.ResponseWriter.WriteHeader(status)
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
