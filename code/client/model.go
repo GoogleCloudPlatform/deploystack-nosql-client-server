@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/charmbracelet/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -24,9 +23,16 @@ type trainerCRUDer interface {
 	update(context.Context, trainer, trainer) error
 }
 
+type trainerCollection interface {
+	InsertMany(context.Context, []interface{}, ...*options.InsertManyOptions) (*mongo.InsertManyResult, error)
+	InsertOne(context.Context, interface{}, ...*options.InsertOneOptions) (*mongo.InsertOneResult, error)
+	DeleteOne(context.Context, interface{}, ...*options.DeleteOptions) (*mongo.DeleteResult, error)
+	ReplaceOne(context.Context, interface{}, interface{}, ...*options.ReplaceOptions) (*mongo.UpdateResult, error)
+	Find(context.Context, interface{}, ...*options.FindOptions) (cur *mongo.Cursor, err error)
+}
+
 type trainerService struct {
-	client     *mongo.Client
-	collection *mongo.Collection
+	collection trainerCollection
 }
 
 // newTrainerService spins up a new TrainerManager for interacting with MongoDB.
@@ -36,18 +42,17 @@ func newTrainerService(ctx context.Context, host, port string) (*trainerService,
 
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
-		return nil, fmt.Errorf("error connecting to mongo: %s", err)
+		return nil, fmt.Errorf("error connecting to mongo: %w", err)
 	}
 
 	collection := client.Database("test").Collection("trainers")
 
 	svc := &trainerService{
-		client:     client,
 		collection: collection,
 	}
 
 	if err := initData(ctx, svc); err != nil {
-		return nil, fmt.Errorf("error initializing data: %s", err)
+		return nil, fmt.Errorf("error initializing data: %w", err)
 	}
 
 	return svc, nil
@@ -72,7 +77,7 @@ func (svc *trainerService) load(ctx context.Context, trainers []trainer) error {
 
 	list, err := svc.list(ctx)
 	if err != nil {
-		return fmt.Errorf("error checking before loading to mongo: %s", err)
+		return fmt.Errorf("error checking before loading to mongo: %w", err)
 	}
 
 	if len(list) > 0 {
@@ -80,7 +85,7 @@ func (svc *trainerService) load(ctx context.Context, trainers []trainer) error {
 	}
 
 	if _, err := svc.collection.InsertMany(ctx, t); err != nil {
-		return fmt.Errorf("error inserting records to mongo: %s", err)
+		return fmt.Errorf("error inserting records to mongo: %w", err)
 	}
 
 	return nil
@@ -89,30 +94,23 @@ func (svc *trainerService) load(ctx context.Context, trainers []trainer) error {
 func (svc *trainerService) create(ctx context.Context, trainer trainer) error {
 
 	if _, err := svc.collection.InsertOne(ctx, trainer); err != nil {
-		return fmt.Errorf("error inserting record to mongo: %s", err)
+		return fmt.Errorf("error inserting record to mongo: %w", err)
 	}
 
 	return nil
 }
 
 func (svc *trainerService) delete(ctx context.Context, trainer trainer) error {
-
 	if _, err := svc.collection.DeleteOne(ctx, trainer); err != nil {
-		return fmt.Errorf("error inserting record to mongo: %s", err)
+		return fmt.Errorf("error inserting record to mongo: %w", err)
 	}
-
 	return nil
 }
 
 func (svc *trainerService) update(ctx context.Context, original, replacement trainer) error {
-
-	log.Warn("", "original", original)
-	log.Warn("", "replacement", replacement)
-
 	if _, err := svc.collection.ReplaceOne(ctx, original, replacement); err != nil {
-		return fmt.Errorf("error replacing record in mongo: %s", err)
+		return fmt.Errorf("error replacing record in mongo: %w", err)
 	}
-
 	return nil
 }
 

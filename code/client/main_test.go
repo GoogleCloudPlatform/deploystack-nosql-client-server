@@ -13,22 +13,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// type trainerCRUDer interface {
-// 	load(context.Context, []trainer) error
-// 	list(context.Context) ([]*trainer, error)
-// 	create(context.Context, trainer) error
-// 	delete(context.Context, trainer) error
-// 	update(context.Context, trainer, trainer) error
-// }
-
-type mock struct {
+type mockService struct {
 	forceErr bool
 	jsonErr  bool
 }
 
 var errForced = fmt.Errorf("this is a forced error")
 
-func (m mock) load(context.Context, []trainer) error {
+func (m mockService) load(context.Context, []trainer) error {
 	if m.forceErr {
 		return errForced
 	}
@@ -36,20 +28,20 @@ func (m mock) load(context.Context, []trainer) error {
 	return nil
 }
 
-func (m mock) create(context.Context, trainer) error {
+func (m mockService) create(context.Context, trainer) error {
 	if m.forceErr {
 		return errForced
 	}
 	return nil
 }
-func (m mock) delete(context.Context, trainer) error {
+func (m mockService) delete(context.Context, trainer) error {
 	if m.forceErr {
 		return errForced
 	}
 	return nil
 }
 
-func (m mock) list(context.Context) ([]*trainer, error) {
+func (m mockService) list(context.Context) ([]*trainer, error) {
 	if m.forceErr {
 		return nil, errForced
 	}
@@ -62,7 +54,7 @@ func (m mock) list(context.Context) ([]*trainer, error) {
 
 	return trainers, nil
 }
-func (m mock) update(context.Context, trainer, trainer) error {
+func (m mockService) update(context.Context, trainer, trainer) error {
 	if m.forceErr {
 		return errForced
 	}
@@ -85,73 +77,73 @@ func TestHandlers(t *testing.T) {
 			want:   `ok`,
 		},
 		"list": {
-			in:     listHandler(mock{}),
+			in:     listHandler(mockService{}),
 			method: http.MethodGet,
 			status: http.StatusOK,
 			want:   `[{"name":"Ash","age":20,"city":"Pallet Town"},{"name":"Misty","age":22,"city":"Cerulean City"},{"name":"Brock","age":35,"city":"Pewter City"}]`,
 		},
 		"create": {
-			in:     createHandler(mock{}),
+			in:     createHandler(mockService{}),
 			method: http.MethodPost,
 			status: http.StatusCreated,
 			body:   `{"name":"Han","age":33,"city":"Cloud City"}`,
 			want:   `{"name":"Han","age":33,"city":"Cloud City"}`,
 		},
 		"delete": {
-			in:     deleteHandler(mock{}),
+			in:     deleteHandler(mockService{}),
 			method: http.MethodDelete,
 			status: http.StatusNoContent,
 			body:   `{"name":"Han","age":33,"city":"Cloud City"}`,
 		},
 		"update": {
-			in:     updateHandler(mock{}),
+			in:     updateHandler(mockService{}),
 			method: http.MethodPut,
 			status: http.StatusOK,
 			body:   `{"original":{"name":"Han","age":33,"city":"Cloud City"},"replacement":{"name":"Han","age":33,"city":"Cloud City"}}`,
 		},
 		"listErr": {
-			in:     listHandler(mock{forceErr: true}),
+			in:     listHandler(mockService{forceErr: true}),
 			method: http.MethodGet,
 			status: http.StatusInternalServerError,
 			want:   `this is a forced error`,
 		},
 		"createErr": {
-			in:     createHandler(mock{forceErr: true}),
+			in:     createHandler(mockService{forceErr: true}),
 			method: http.MethodPost,
 			status: http.StatusInternalServerError,
 			body:   `{"name":"Han","age":33,"city":"Cloud City"}`,
 			want:   `this is a forced error`,
 		},
 		"deleteErr": {
-			in:     deleteHandler(mock{forceErr: true}),
+			in:     deleteHandler(mockService{forceErr: true}),
 			method: http.MethodDelete,
 			status: http.StatusInternalServerError,
 			body:   `{"name":"Han","age":33,"city":"Cloud City"}`,
 			want:   `this is a forced error`,
 		},
 		"updateErr": {
-			in:     updateHandler(mock{forceErr: true}),
+			in:     updateHandler(mockService{forceErr: true}),
 			method: http.MethodPut,
 			status: http.StatusInternalServerError,
 			body:   `{"original":{"name":"Han","age":33,"city":"Cloud City"},"replacement":{"name":"Han","age":33,"city":"Cloud City"}}`,
 			want:   `this is a forced error`,
 		},
 		"createJSONErr": {
-			in:     createHandler(mock{forceErr: true}),
+			in:     createHandler(mockService{forceErr: true}),
 			method: http.MethodPost,
 			status: http.StatusInternalServerError,
 			body:   `this aint no json`,
 			want:   `invalid character 'h' in literal true (expecting 'r')`,
 		},
 		"deleteJSONErr": {
-			in:     deleteHandler(mock{forceErr: true}),
+			in:     deleteHandler(mockService{forceErr: true}),
 			method: http.MethodDelete,
 			status: http.StatusInternalServerError,
 			body:   `this aint no json`,
 			want:   "invalid character 'h' in literal true (expecting 'r')",
 		},
 		"updateJSONErr": {
-			in:     updateHandler(mock{forceErr: true}),
+			in:     updateHandler(mockService{forceErr: true}),
 			method: http.MethodPut,
 			status: http.StatusInternalServerError,
 			body:   `this aint no json`,
