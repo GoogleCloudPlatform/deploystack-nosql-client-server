@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.1](https://github.com/GoogleCloudPlatform/deploystack-nosql-client-server/compare/v1.0.0...v1.0.1) (2023-03-18)
+
+
+### Bug Fixes
+
+* got a basic http website working with mongo ([8709403](https://github.com/GoogleCloudPlatform/deploystack-nosql-client-server/commit/87094032588e1a36d78ffdeb5a999b41c5a7c85e))
+* initial import of the existing client code ([88b9fac](https://github.com/GoogleCloudPlatform/deploystack-nosql-client-server/commit/88b9fac47b0ea372cb1e6a09f52d9d50ca7aa7e5))
+* pushing last of the app code ([1fce962](https://github.com/GoogleCloudPlatform/deploystack-nosql-client-server/commit/1fce962dd2d80a5fb103b4aafa3f13bc00fcbf92))
+* updated logging for the demo app ([935d713](https://github.com/GoogleCloudPlatform/deploystack-nosql-client-server/commit/935d713922e23b3f16840b298a9e7c4b5e9472ef))
+
 ## 1.0.0 (2023-03-10)
 
 
