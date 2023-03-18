@@ -84,3 +84,14 @@ button.delete{
 button:active.delete{
     box-shadow: none;
 }
+
+.congrats{
+    border: 1px solid #95f8f8;
+    border-radius: 4px;
+    
+    background-color: #f2fcfc;
+}
+
+p{
+    padding: 6px;
+}
