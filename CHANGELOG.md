@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/GoogleCloudPlatform/deploystack-nosql-client-server/compare/v1.0.1...v1.0.2) (2023-03-20)
+
+
+### Bug Fixes
+
+* uses new app instead of old version. ([3ca41da](https://github.com/GoogleCloudPlatform/deploystack-nosql-client-server/commit/3ca41dadd969b5ee309f0e50b29fd4a8d5908e25))
+
 ## [1.0.1](https://github.com/GoogleCloudPlatform/deploystack-nosql-client-server/compare/v1.0.0...v1.0.1) (2023-03-18)
 
 
