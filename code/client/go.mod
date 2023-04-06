@@ -6,11 +6,13 @@ require (
 	github.com/charmbracelet/log v0.1.2
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
+	github.com/stretchr/testify v1.8.2
 	go.mongodb.org/mongo-driver v1.11.2
 )
 
 require (
 	github.com/charmbracelet/lipgloss v0.6.0 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
@@ -22,6 +24,7 @@ require (
 	github.com/muesli/reflow v0.2.1-0.20210115123740-9e1d0d53df68 // indirect
 	github.com/muesli/termenv v0.11.1-0.20220204035834-5ac8409525e0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.2 // indirect
@@ -31,4 +34,5 @@ require (
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/text v0.8.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
