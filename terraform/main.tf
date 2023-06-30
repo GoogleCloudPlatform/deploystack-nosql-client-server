@@ -115,7 +115,7 @@ resource "google_compute_instance" "server" {
     auto_delete = true
     device_name = "server"
     initialize_params {
-      image = "family/ubuntu-1804-lts"
+      image = "family/ubuntu-2004-lts"
       size  = 10
       type  = "pd-standard"
     }
@@ -155,7 +155,7 @@ resource "google_compute_instance" "client" {
     auto_delete = true
     device_name = "client"
     initialize_params {
-      image = "family/ubuntu-1804-lts"
+      image = "family/ubuntu-2004-lts"
       size  = 10
       type  = "pd-standard"
     }
