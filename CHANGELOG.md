@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/GoogleCloudPlatform/deploystack-nosql-client-server/compare/v1.0.2...v1.0.3) (2023-07-06)
+
+
+### Bug Fixes
+
+* update ubuntu image to version 20.04 ([fe844da](https://github.com/GoogleCloudPlatform/deploystack-nosql-client-server/commit/fe844daf5d7e37d7c56f378fd559625e875d6c5c))
+
 ## [1.0.2](https://github.com/GoogleCloudPlatform/deploystack-nosql-client-server/compare/v1.0.1...v1.0.2) (2023-03-20)
 
 
