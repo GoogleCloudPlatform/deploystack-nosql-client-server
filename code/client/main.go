@@ -37,6 +37,8 @@ const (
 
 func main() {
 	dbHost := os.Getenv("DBHOST")
+	dbUser := os.Getenv("DBUSER")
+	dbPass := os.Getenv("DBPASS")
 	port := os.Getenv("PORT")
 
 	if port == "" {
@@ -47,8 +49,12 @@ func main() {
 		log.Fatal("DBHOST env not set. Need ip/host with mongo on port", mongoport)
 	}
 
+	if dbUser == "" || dbPass == "" {
+		log.Fatal("DBUSER and DBPASS env must be set")
+	}
+
 	ctx := context.Background()
-	svc, err := newTrainerService(ctx, dbHost, mongoport)
+	svc, err := newTrainerService(ctx, dbHost, mongoport, dbUser, dbPass)
 	if err != nil {
 		log.Fatal("error connecting to mongo: ", err)
 	}

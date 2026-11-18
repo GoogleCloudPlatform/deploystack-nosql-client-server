@@ -90,6 +90,10 @@ section_open "Delete Firewall Rule"
    gcloud compute firewall-rules delete deploystack-allow-internal -q
 section_close
 
+section_open "Delete Router"
+   gcloud compute routers delete $BASENAME-router --region="$REGION" -q
+section_close
+
 section_open "Delete Network Rule"
    gcloud compute networks delete $BASENAME-network -q 
 section_close

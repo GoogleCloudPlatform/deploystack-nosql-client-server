@@ -14,6 +14,28 @@
  * limitations under the License.
  */
 
+terraform {
+  required_providers {
+    google = {
+      source = "hashicorp/google"
+    }
+    google-beta = {
+      source = "hashicorp/google-beta"
+    }
+    random = {
+      source = "hashicorp/random"
+    }
+  }
+}
+
+locals {
+  mongo_user = "trainer_app"
+}
+
+resource "random_password" "mongo_password" {
+  length  = 32
+  special = false
+}
 
 # Enabling services in your GCP project
 
@@ -45,6 +67,23 @@ resource "google_compute_network" "main" {
   depends_on              = [google_project_service.all]
 }
 
+resource "google_compute_router" "router" {
+  name       = "${var.basename}-router"
+  project    = var.project_id
+  region     = var.region
+  network    = google_compute_network.main.id
+  depends_on = [google_project_service.all]
+}
+
+resource "google_compute_router_nat" "nat" {
+  name                               = "${var.basename}-nat"
+  project                            = var.project_id
+  router                             = google_compute_router.router.name
+  region                             = google_compute_router.router.region
+  nat_ip_allocate_option             = "AUTO_ONLY"
+  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+}
+
 resource "google_compute_firewall" "default-allow-http" {
   name    = "deploystack-allow-http"
   project = data.google_project.project.number
@@ -68,21 +107,12 @@ resource "google_compute_firewall" "default-allow-internal" {
 
   allow {
     protocol = "tcp"
-    ports    = ["0-65535"]
+    ports    = ["27017"]
   }
 
-  allow {
-    protocol = "udp"
-    ports    = ["0-65535"]
-  }
-
-  allow {
-    protocol = "icmp"
-  }
-
-  source_ranges = ["10.128.0.0/20"]
-  depends_on    = [google_project_service.all]
-
+  source_tags = ["mongo-client"]
+  target_tags = ["mongo-server"]
+  depends_on  = [google_project_service.all]
 }
 
 resource "google_compute_firewall" "default-allow-ssh" {
@@ -107,7 +137,7 @@ resource "google_compute_instance" "server" {
   zone                      = var.zone
   project                   = var.project_id
   machine_type              = "e2-standard-2"
-  tags                      = ["ssh-server", "http-server"]
+  tags                      = ["ssh-server", "mongo-server"]
   allow_stopping_for_update = true
 
 
@@ -123,24 +153,76 @@ resource "google_compute_instance" "server" {
 
   network_interface {
     network = google_compute_network.main.name
-    access_config {
-      // Ephemeral public IP
-    }
   }
 
   service_account {
     scopes = ["https://www.googleapis.com/auth/logging.write"]
   }
 
-  metadata_startup_script = <<SCRIPT
-    apt-get update
-    apt-get install -y mongodb
-    service mongodb stop
-    sed -i 's/bind_ip = 127.0.0.1/bind_ip = 0.0.0.0/' /etc/mongodb.conf
-    iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 27017
-    service mongodb start
+  metadata = {
+    mongo-user     = local.mongo_user
+    mongo-password = random_password.mongo_password.result
+  }
+
+  metadata_startup_script = <<-SCRIPT
+    #!/bin/bash
+    set -euo pipefail
+    trap 'rm -f /run/init_mongo.js' EXIT
+
+    INTERNAL_IP=$(curl -sf -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/ip)
+    MONGO_USER=$(curl -sf -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/attributes/mongo-user)
+    MONGO_PASS=$(curl -sf -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/attributes/mongo-password)
+
+    if [ ! -f /var/lib/mongodb/.auth_initialized ]; then
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update
+      apt-get install -y mongodb
+
+      systemctl stop mongodb
+      sed -i 's/^bind_ip\s*=.*/bind_ip = 127.0.0.1/' /etc/mongodb.conf
+      sed -i 's/^auth\s*=.*/#auth = true/' /etc/mongodb.conf
+      systemctl start mongodb
+
+      until mongo --quiet --host 127.0.0.1 --port 27017 --eval "db.adminCommand('ping')" >/dev/null 2>&1; do
+        sleep 1
+      done
+
+      (
+        umask 077
+        cat <<EOF > /run/init_mongo.js
+    var adminDb = db.getSiblingDB("admin");
+    if (adminDb.getUser("$MONGO_USER") === null) {
+      adminDb.createUser({
+        user: "$MONGO_USER",
+        pwd: "$MONGO_PASS",
+        roles: [{ role: "readWrite", db: "test" }]
+      });
+    } else {
+      adminDb.updateUser("$MONGO_USER", {
+        pwd: "$MONGO_PASS",
+        roles: [{ role: "readWrite", db: "test" }]
+      });
+    }
+    EOF
+      )
+      mongo --quiet --host 127.0.0.1 --port 27017 /run/init_mongo.js >/dev/null
+      rm -f /run/init_mongo.js
+
+      touch /var/lib/mongodb/.auth_initialized
+      chmod 600 /var/lib/mongodb/.auth_initialized
+    fi
+
+    systemctl stop mongodb
+    sed -i "s/^bind_ip\s*=.*/bind_ip = 127.0.0.1,$INTERNAL_IP/" /etc/mongodb.conf
+    grep -q "^bind_ip = 127.0.0.1,$INTERNAL_IP$" /etc/mongodb.conf || echo "bind_ip = 127.0.0.1,$INTERNAL_IP" >> /etc/mongodb.conf
+    sed -i 's/^#*\s*auth\s*=.*/auth = true/' /etc/mongodb.conf
+    grep -q '^auth = true$' /etc/mongodb.conf || echo 'auth = true' >> /etc/mongodb.conf
+    systemctl start mongodb
   SCRIPT
-  depends_on              = [google_project_service.all]
+  depends_on = [
+    google_project_service.all,
+    google_compute_router_nat.nat,
+  ]
 }
 
 resource "google_compute_instance" "client" {
@@ -148,7 +230,7 @@ resource "google_compute_instance" "client" {
   zone                      = var.zone
   project                   = var.project_id
   machine_type              = "e2-standard-2"
-  tags                      = ["http-server", "https-server", "ssh-server"]
+  tags                      = ["http-server", "https-server", "ssh-server", "mongo-client"]
   allow_stopping_for_update = true
 
   boot_disk {
@@ -172,20 +254,64 @@ resource "google_compute_instance" "client" {
     }
   }
 
-  metadata_startup_script = <<SCRIPT
-    add-apt-repository ppa:longsleep/golang-backports -y && \
-    apt update -y && \
-    apt install golang-go git -y
-    mkdir /modcache
-    mkdir /go
-    mkdir /app && cd /app
-    git clone https://github.com/GoogleCloudPlatform/deploystack-nosql-client-server.git
-    cd /app/deploystack-nosql-client-server/code/client
-    GOPATH=/go GOMODCACHE=/modcache GOCACHE=/modcache go build -o trainers main.go model.go
-    echo "GOPATH=/go GOMODCACHE=/modcache GOCACHE=/modcache DBHOST=${google_compute_instance.server.network_interface.0.network_ip} ./trainers"
-    GOPATH=/go GOMODCACHE=/modcache GOCACHE=/modcache DBHOST=${google_compute_instance.server.network_interface.0.network_ip} ./trainers & 
-  SCRIPT
+  metadata = {
+    mongo-user      = local.mongo_user
+    mongo-password  = random_password.mongo_password.result
+    client-main-go  = file("${path.module}/../code/client/main.go")
+    client-model-go = file("${path.module}/../code/client/model.go")
+  }
 
+  metadata_startup_script = <<-SCRIPT
+    #!/bin/bash
+    set -euo pipefail
+
+    MONGO_USER=$(curl -sf -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/attributes/mongo-user)
+    MONGO_PASS=$(curl -sf -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/attributes/mongo-password)
+
+    if [ ! -f /app/deploystack-nosql-client-server/code/client/trainers ]; then
+      export DEBIAN_FRONTEND=noninteractive
+      add-apt-repository ppa:longsleep/golang-backports -y
+      apt-get update -y
+      apt-get install -y golang-go git
+      mkdir -p /modcache /go /app
+      rm -rf /app/deploystack-nosql-client-server
+      git clone https://github.com/GoogleCloudPlatform/deploystack-nosql-client-server.git /app/deploystack-nosql-client-server
+      cd /app/deploystack-nosql-client-server/code/client
+      curl -sf -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/attributes/client-main-go > main.go
+      curl -sf -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/attributes/client-model-go > model.go
+      GOPATH=/go GOMODCACHE=/modcache GOCACHE=/modcache go build -o trainers main.go model.go
+    fi
+
+    (
+      umask 077
+      cat <<EOF > /etc/trainers.env
+    DBHOST=${google_compute_instance.server.network_interface.0.network_ip}
+    DBUSER=$MONGO_USER
+    DBPASS=$MONGO_PASS
+    EOF
+    )
+
+    cat <<'EOF' > /etc/systemd/system/trainers.service
+    [Unit]
+    Description=DeployStack NoSQL Trainer Client
+    After=network-online.target
+    Wants=network-online.target
+
+    [Service]
+    Type=simple
+    WorkingDirectory=/app/deploystack-nosql-client-server/code/client
+    EnvironmentFile=/etc/trainers.env
+    ExecStart=/app/deploystack-nosql-client-server/code/client/trainers
+    Restart=always
+    RestartSec=3
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+
+    systemctl daemon-reload
+    systemctl enable --now trainers.service
+  SCRIPT
 
   depends_on = [google_project_service.all]
 }

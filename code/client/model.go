@@ -35,10 +35,36 @@ type trainerService struct {
 	collection trainerCollection
 }
 
-// newTrainerService spins up a new TrainerManager for interacting with MongoDB.
-func newTrainerService(ctx context.Context, host, port string) (*trainerService, error) {
+const mongoAuthSource = "admin"
+
+func buildClientOptions(host, port, user, password string) (*options.ClientOptions, error) {
+	if host == "" || port == "" {
+		return nil, fmt.Errorf("mongodb host and port are required")
+	}
+	if user == "" || password == "" {
+		return nil, fmt.Errorf("mongodb username and password are required")
+	}
+
 	uri := fmt.Sprintf("mongodb://%s:%s", host, port)
-	clientOptions := options.Client().ApplyURI(uri)
+	clientOptions := options.Client().ApplyURI(uri).SetAuth(options.Credential{
+		AuthSource:  mongoAuthSource,
+		Username:    user,
+		Password:    password,
+		PasswordSet: true,
+	})
+	if err := clientOptions.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid mongo client options: %w", err)
+	}
+
+	return clientOptions, nil
+}
+
+// newTrainerService spins up a new TrainerManager for interacting with MongoDB.
+func newTrainerService(ctx context.Context, host, port, user, password string) (*trainerService, error) {
+	clientOptions, err := buildClientOptions(host, port, user, password)
+	if err != nil {
+		return nil, fmt.Errorf("error configuring mongo client: %w", err)
+	}
 
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
@@ -52,6 +78,7 @@ func newTrainerService(ctx context.Context, host, port string) (*trainerService,
 	}
 
 	if err := initData(ctx, svc); err != nil {
+		_ = client.Disconnect(ctx)
 		return nil, fmt.Errorf("error initializing data: %w", err)
 	}
 

@@ -214,14 +214,49 @@ func TestCollection(t *testing.T) {
 	}
 }
 
+func TestBuildClientOptions(t *testing.T) {
+	t.Run("valid credentials", func(t *testing.T) {
+		opts, err := buildClientOptions("10.128.0.2", "27017", "trainer_app", "s3cr3tpass")
+		require.NoError(t, err)
+		require.NotNil(t, opts.Auth)
+		assert.Equal(t, []string{"10.128.0.2:27017"}, opts.Hosts)
+		assert.Equal(t, "admin", opts.Auth.AuthSource)
+		assert.Equal(t, "trainer_app", opts.Auth.Username)
+		assert.Equal(t, "s3cr3tpass", opts.Auth.Password)
+		assert.True(t, opts.Auth.PasswordSet)
+	})
+
+	t.Run("missing host or port", func(t *testing.T) {
+		_, err := buildClientOptions("", "27017", "trainer_app", "s3cr3tpass")
+		assert.ErrorContains(t, err, "mongodb host and port are required")
+
+		_, err = buildClientOptions("10.128.0.2", "", "trainer_app", "s3cr3tpass")
+		assert.ErrorContains(t, err, "mongodb host and port are required")
+	})
+
+	t.Run("missing credentials rejected", func(t *testing.T) {
+		_, err := buildClientOptions("10.128.0.2", "27017", "", "s3cr3tpass")
+		assert.ErrorContains(t, err, "mongodb username and password are required")
+
+		_, err = buildClientOptions("10.128.0.2", "27017", "trainer_app", "")
+		assert.ErrorContains(t, err, "mongodb username and password are required")
+	})
+}
+
 func TestNewTrainerService(t *testing.T) {
-	dl := 1 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), dl)
-	defer cancel()
+	t.Run("missing credentials", func(t *testing.T) {
+		_, err := newTrainerService(context.Background(), "127.0.0.1", "27017", "", "")
+		assert.ErrorContains(t, err, "mongodb username and password are required")
+	})
 
-	_, err := newTrainerService(ctx, "", "")
-	want := "error initializing data"
+	t.Run("unreachable server with credentials", func(t *testing.T) {
+		dl := 1 * time.Second
+		ctx, cancel := context.WithTimeout(context.Background(), dl)
+		defer cancel()
 
-	assert.ErrorContains(t, err, want)
+		_, err := newTrainerService(ctx, "127.0.0.1", "27017", "trainer_app", "s3cr3tpass")
+		want := "error initializing data"
 
+		assert.ErrorContains(t, err, want)
+	})
 }
